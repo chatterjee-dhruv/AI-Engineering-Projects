@@ -1,3 +1,4 @@
 dotenv
 openai
 pydantic
+mysql-connector-python
