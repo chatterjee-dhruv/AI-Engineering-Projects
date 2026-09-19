@@ -4,11 +4,25 @@ import os
 from mydbconnector import execute_query, get_schema
 from table_names import TABLE_NAMES
 import json
+from pydantic import BaseModel, Field
 
 load_dotenv()
 
 client = OpenAI()
 
+
+class SQLAnswer(BaseModel):
+    answer: str = Field(
+        description="A concise natural-language answer to the user's question."
+    )
+
+    sql_query: str = Field(
+        description="The SQL query that was executed to obtain the answer."
+    )
+
+    tables_used: list[str] = Field(
+        description="The database tables used in the SQL query."
+    )
 
 tools = [
     {
@@ -89,8 +103,8 @@ while True:
 
     while True:
 
-        resp = client.responses.create(
-            model="gpt-5.6-sol", input=history, tools=tools, parallel_tool_calls=False)
+        resp = client.responses.parse(
+            model="gpt-5.6-sol", input=history, tools=tools, parallel_tool_calls=False, text_format=SQLAnswer)
 
         history += resp.output
 
@@ -101,9 +115,19 @@ while True:
             ]
 
         if not function_calls:
-            print(resp.output_text)
-            print(f"HISTORY: {history}")
+            answer = resp.output_parsed
+
+            print("\nANSWER:")
+            print(answer.answer)
+
+            print("\nSQL:")
+            print(answer.sql_query)
+
+            print("\nTABLES:")
+            print(answer.tables_used)
+
             break
+
 
         for call in function_calls:
             function_name = call.name
